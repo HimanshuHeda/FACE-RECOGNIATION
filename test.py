@@ -1,10 +1,11 @@
-from sklearn.neighbors import KNeighborsClassifier
 
+import csv
+from sklearn.neighbors import KNeighborsClassifier
 import cv2
 import pickle
 import numpy as np
 import os
-import time 
+import time
 from datetime import datetime
 
 video = cv2.VideoCapture(0)
@@ -22,37 +23,49 @@ imgBackground = cv2.imread("background.png")
 
 COL_NAMES = ['NAME', 'DATE', 'TIME']
 
+
+# Set to keep track of names already marked present in this session
+marked_names = set()
+
 while True:
     ret, frame = video.read()
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = facedetect.detectMultiScale(gray, 1.3, 5)
-    for (x,y,w,h) in faces:
+    recognized_names = []
+    for (x, y, w, h) in faces:
         crop_img = frame[y:y+h, x:x+w :]
         resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
         output = knn.predict(resized_img)
+        name = str(output[0])
+        recognized_names.append(name)
         ts = time.time()
         date = datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
         timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-        exist = os.path.isfile("Attendance/Attendance_" + date + ".csv")
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (0,0,255), 1) 
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (50,50,255), 2)
-        cv2.rectangle(frame, (x,y-40), (x+w,y), (50,50,255), -1)
-        cv2.putText(frame, str(output[0]), (x,y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255,255,255), 2) 
-        cv2.rectangle(frame, (x,y), (x+w,y+h), (0,255,0), 2)
-        # Create a proper attendance string instead of using subscript on str
-        # Format: NAME, DATE, TIME
-        name = str(output[0])
-        attendence = f"{name},{date},{timestamp}"
-        # Optionally append attendance to a CSV file (creates file if missing)
-        attendance_path = os.path.join('data', 'attendance.csv')
-        # Ensure the data folder exists
-        os.makedirs('data', exist_ok=True)
-        with open(attendance_path, 'a') as af:
-            af.write(attendence + "\n")
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 2)
+        cv2.rectangle(frame, (x, y-40), (x+w, y), (50, 50, 255), -1)
+        cv2.putText(frame, name, (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2)
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
     imgBackground[162:162+480, 55:55+640] = frame
     cv2.imshow("Video", imgBackground)
     k = cv2.waitKey(1)
-    if k == ord('q'):  # Press 'q' to exit
+    if k == ord('o'):
+        # Only mark attendance for new recognized names in this session
+        ts = time.time()
+        date = datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
+        timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+        attendance_file = f"Attendance/Attendance_{date}.csv"
+        os.makedirs('Attendance', exist_ok=True)
+        file_exists = os.path.isfile(attendance_file)
+        with open(attendance_file, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            if not file_exists:
+                writer.writerow(COL_NAMES)
+            for name in recognized_names:
+                if name not in marked_names:
+                    writer.writerow([name, date, timestamp])
+                    marked_names.add(name)
+    if k == ord('q'):
         break
 
 video.release()
