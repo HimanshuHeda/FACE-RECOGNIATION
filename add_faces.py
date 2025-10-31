@@ -19,7 +19,6 @@ i = 0
 # Get the name of the person from user input
 name = input("Enter the name of the Person: ")
 
-
 # Main loop to capture faces from video
 while True:
     ret, frame = video.read()  # Read a frame from the camera
@@ -42,12 +41,9 @@ while True:
     if k == ord('q') or len(faces_data) == 100:
         break
 
-
 # Release the video capture and close windows
 video.release()
 cv2.destroyAllWindows()
-
-
 
 # Convert faces_data list to numpy array and reshape for saving
 faces_data = np.asarray(faces_data)
@@ -57,23 +53,28 @@ faces_data = faces_data.reshape(100, -1)
 # Save or update names in name.pkl
 if 'name.pkl' not in os.listdir('data/'):
     names = [name] * 100  # Create a list with the name repeated 100 times
-    with open('data/name.pkl', 'wb') as f:
-        pickle.dump(names, f)  # Save names to file
 else:
     with open('data/name.pkl', 'rb') as f:
         names = pickle.load(f)  # Load existing names
     names += [name] * 100  # Add new names
-    with open('data/name.pkl', 'wb') as f:
-        pickle.dump(names, f)  # Save updated names
-
+with open('data/name.pkl', 'wb') as f:
+    pickle.dump(names, f)  # Save updated names
 
 # Save or update faces data in faces_data.pkl
+faces_data_path = 'data/faces_data.pkl'
 if 'faces_data.pkl' in os.listdir('data/'):
-    with open('data/faces_data.pkl', 'wb') as f:
-        faces = pickle.load(f)  # Load existing faces data
-    faces = np.append(faces, faces_data, axis=0)  # Append new faces data
-    with open('data/faces_data.pkl', 'rb') as f:
-        pickle.dump(faces, f)  # Save updated faces data
+    try:
+        with open(faces_data_path, 'rb') as f:
+            faces = pickle.load(f)  # Load existing faces data
+        faces = np.append(faces, faces_data, axis=0)  # Append new faces data
+    except (EOFError, pickle.UnpicklingError):
+        faces = faces_data  # File is empty or corrupted, start fresh
 else:
-    with open('data/faces_data.pkl', 'wb') as f:
-        pickle.dump(faces_data, f)  # Save new faces data
+    faces = faces_data  # First entry
+with open(faces_data_path, 'wb') as f:
+    pickle.dump(faces, f)  # Save updated faces data
+
+
+
+# cd /d "d:\Christ\5MCA\FACE RECOGNIATION"
+# python add_faces.py
